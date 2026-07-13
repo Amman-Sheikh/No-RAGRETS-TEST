@@ -1340,13 +1340,17 @@ async function uploadPhotoToCloudinary(file) {
 
 Cal("init", { origin: "https://cal.com" });
 
-function renderCalBooking() {
+function renderCalBooking(name, email) {
   const el = document.getElementById("calBooking");
   if (!el || el.dataset.rendered) return; // avoid double-render on repeat submits
   Cal("inline", {
     elementOrSelector: "#calBooking",
     calLink: el.dataset.calLink,
     layout: "month_view",
+    config: {
+      name: name || "",
+      email: email || "",
+    },
   });
   el.dataset.rendered = "true";
 }
@@ -1441,7 +1445,7 @@ async function submitToBrevo(payload) {
       // 5. Success UI (no layout change — matches existing form-success element)
       form.style.display = "none";
       success.style.display = "block";
-      renderCalBooking();
+      renderCalBooking(fd.get("name"), payload.email);
 
     } catch (err) {
       console.error("Submission error:", err);
