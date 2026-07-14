@@ -416,7 +416,7 @@ h3.display{font-size:clamp(1.35rem,2.4vw,1.7rem);font-weight:400;}
 .calendar-ph p{font-size:.86rem;color:var(--smoke);}
 .calendar-ph strong{color:var(--ink);display:block;margin-bottom:2px;font-size:.92rem;} */
     /* Step indicators */
-    .flow-steps{display:flex;align-items:center;gap:0;margin-bottom:32px;}
+    .flow-steps{display:flex;align-items:center;gap:0;margin-block:32px;}
     .flow-step{display:flex;align-items:center;gap:10px;font-size:.78rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--smoke);transition:color .3s ease;}
     .flow-step.active{color:var(--champagne-deep);}
     .flow-step.done{color:var(--smoke);}
@@ -469,6 +469,7 @@ h3.display{font-size:clamp(1.35rem,2.4vw,1.7rem);font-weight:400;}
 .form-success svg{width:52px;height:52px;stroke:var(--champagne-deep);margin:0 auto 20px;}
 .form-success h3{margin-bottom:10px;}
 .form-success p{color:var(--smoke);max-width:380px;margin:0 auto;}
+.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;}
 
 /* ---------- FAQ ---------- */
 .faq-list{max-width:780px;margin:52px auto 0;}
@@ -883,7 +884,8 @@ footer{background:var(--ink);padding:72px 0 40px;}
     <div class="form-card reveal">
       <!-- CRM PLACEHOLDER: POST this payload to your CRM webhook (e.g., GoHighLevel / HubSpot).
            Tag by intent: consult-request / photo-submitted / waitlist. Fire Lead pixel events on success. -->
-      <form id="consultForm" novalidate>
+      <form id="consultForm" novalidate aria-describedby="formError">
+        <p id="formError" class="sr-only" role="alert"></p>
         <div class="form-grid">
           <div class="field"><label for="fName">Full name</label><input id="fName" name="name" type="text" autocomplete="name" required /></div>
           <div class="field"><label for="fPhone">Phone number</label><input id="fPhone" name="phone" type="tel" autocomplete="tel" required /></div>
@@ -940,15 +942,15 @@ footer{background:var(--ink);padding:72px 0 40px;}
               <label class="chip"><input type="checkbox" name="colors" value="White/Skin-tone" /><span>White / Skin-tone</span></label>
             </div>
           </div>
-          <div class="field full"><label>Your goal</label>
-            <div class="radio-row">
+          <div class="field full"><label id="goalLabel">Your goal</label>
+            <div class="radio-row" role="group" aria-labelledby="goalLabel">
               <label class="chip"><input type="radio" name="goal" value="Full removal" required /><span>Full removal</span></label>
               <label class="chip"><input type="radio" name="goal" value="Fading for cover-up" /><span>Fading for a cover-up</span></label>
               <label class="chip"><input type="radio" name="goal" value="Not sure" /><span>Not sure yet</span></label>
             </div>
           </div>
-          <div class="field full"><label>Preferred contact method</label>
-            <div class="radio-row">
+          <div class="field full"><label id="contactMethodLabel">Preferred contact method</label>
+            <div class="radio-row" role="group" aria-labelledby="contactMethodLabel">
               <label class="chip"><input type="radio" name="contactMethod" value="Text" required /><span>Text</span></label>
               <label class="chip"><input type="radio" name="contactMethod" value="Call" /><span>Call</span></label>
               <label class="chip"><input type="radio" name="contactMethod" value="Email" /><span>Email</span></label>
@@ -976,14 +978,14 @@ footer{background:var(--ink);padding:72px 0 40px;}
         </div>
         <p class="form-micro">Your photo and details stay private and are used only to prepare your personalized assessment.</p>
       </form>
-      <div class="form-success" id="formSuccess">
+      <div class="form-success" id="formSuccess" aria-live="polite">
         <svg viewBox="0 0 24 24" fill="none" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><path d="M7.5 12.5l3 3 6-7"/></svg>
         <h3 class="display">You're on the list.</h3>
         <p>We've received your details. Expect a personal reply within one business day with your tattoo assessment and next steps.</p>
         <!-- SMS/EMAIL AUTOMATION PLACEHOLDER: trigger instant confirmation text/email + nurture sequence via CRM -->
         <!-- CAL.COM BOOKING WIDGET: rendered here once the lead is saved.
              Replace "your-cal-username/consultation" with your real Cal.com event link. -->
-        <div id="calBooking" data-cal-link="noragretslaser-zxvtdh/30min" style="margin-top:28px;"></div>
+        <div id="calBooking" data-cal-link="noragretslaser-zxvtdh/30min" aria-busy="true" style="margin-top:28px;"></div>
       </div>
     </div>
   </div>
@@ -1260,7 +1262,9 @@ document.getElementById("fPhoto").addEventListener("change", function(){
 
 /* ---------- Field-level validation helpers ---------- */
 function markField(inputEl, valid) {
+  if (!inputEl) return;
   inputEl.style.borderColor = valid ? "" : "var(--error, #C0392B)";
+  inputEl.setAttribute("aria-invalid", String(!valid));
 }
 function validateRequiredField(id) {
   const el = document.getElementById(id);
@@ -1275,9 +1279,15 @@ function validateEmail(id) {
   return ok;
 }
 function validateRadio(name) {
-  return [...document.querySelectorAll(`input[name="${name}"]`)].some(r => r.checked);
+  const inputs = [...document.querySelectorAll(`input[name="${name}"]`)];
+  const ok = inputs.some(input => input.checked);
+  inputs.forEach(input => input.setAttribute("aria-invalid", String(!ok)));
+  return ok;
 }
 function validateForm() {
+  const privacy = document.getElementById("cPrivacy");
+  const privacyOk = privacy.checked;
+  markField(privacy, privacyOk);
   const checks = [
     validateRequiredField("fName"),
     validateRequiredField("fPhone"),
@@ -1289,9 +1299,11 @@ function validateForm() {
     validateRequiredField("fSkin"),
     validateRadio("goal"),
     validateRadio("contactMethod"),
-    document.getElementById("cPrivacy").checked,
+    privacyOk,
   ];
-  return checks.every(Boolean);
+  const ok = checks.every(Boolean);
+  document.getElementById("formError").textContent = ok ? "" : "Please correct the highlighted fields before submitting.";
+  return ok;
 }
 
 /* ---------- Cloudinary upload (XHR for progress, no key exposed) ---------- */
@@ -1310,14 +1322,14 @@ async function uploadPhotoToCloudinary(file) {
     fd.append("upload_preset", preset);
     fd.append("folder", "no-ragrets/consultations");
 
-    const xhr = new XMLHttpRequest();
-    xhr.open("POST", url);
-
     let attempt = 0;
     const MAX = 3;
 
     function run() {
       attempt++;
+      const xhr = new XMLHttpRequest();
+      xhr.open("POST", url);
+      xhr.timeout = 15000;
       xhr.onload = () => {
         if (xhr.status === 200) {
           try { resolve(JSON.parse(xhr.responseText).secure_url || null); }
@@ -1329,67 +1341,131 @@ async function uploadPhotoToCloudinary(file) {
         }
       };
       xhr.onerror = () => attempt < MAX ? setTimeout(run, 1200 * attempt) : reject(new Error("Network error"));
+      xhr.ontimeout = () => attempt < MAX ? setTimeout(run, 1200 * attempt) : reject(new Error("Upload timed out"));
       xhr.send(fd);
     }
     run();
   });
 }
 
-/* ---------- Cal.com embed loader (official snippet) ---------- */
-(function (C, A, L) {
-  let p = function (a, ar) { a.q.push(ar); };
-  let d = C.document;
-  C.Cal = C.Cal || function () {
-    let cal = C.Cal;
-    let ar = arguments;
-    if (!cal.loaded) {
-      cal.ns = {};
-      cal.q = cal.q || [];
-      d.head.appendChild(d.createElement("script")).src = A;
-      cal.loaded = true;
-    }
-    if (ar[0] === L) {
-      const api = function () { p(api, arguments); };
-      const namespace = ar[1];
-      api.q = api.q || [];
-      if (typeof namespace === "string") {
-        cal.ns[namespace] = cal.ns[namespace] || api;
-        p(cal.ns[namespace], ar);
-        p(cal, ["initNamespace", namespace]);
-      } else p(cal, ar);
-      return;
-    }
-    p(cal, ar);
-  };
-})(window, "https://app.cal.com/embed/embed.js", "init");
+/* ---------- Cal.com embed lifecycle ---------- */
+let calInitialized = false;
+let calRetryAttempted = false;
+let pendingCalBooking = null;
 
-Cal("init", { origin: "https://cal.com" });
+function setFlowStep(currentStep) {
+  [1, 2, 3].forEach(number => {
+    const step = document.getElementById(`step-indicator-${number}`);
+    const label = step.querySelector("span").textContent;
+    const isDone = number < currentStep;
+    const isCurrent = number === currentStep;
+    step.classList.toggle("done", isDone);
+    step.classList.toggle("active", isCurrent);
+    step.setAttribute("aria-label", `${label}: ${isDone ? "complete" : isCurrent ? "current step" : "upcoming"}`);
+  });
+}
+
+function showCalFallback(allowRetry) {
+  const el = document.getElementById("calBooking");
+  if (!el || !el.dataset.rendered) return;
+
+  if (allowRetry && !calRetryAttempted && pendingCalBooking) {
+    calRetryAttempted = true;
+    delete el.dataset.rendered;
+    setTimeout(() => renderCalBooking(pendingCalBooking.name, pendingCalBooking.email), 1200);
+    return;
+  }
+
+  el.setAttribute("aria-busy", "false");
+  const fallback = document.createElement("a");
+  fallback.href = `https://cal.com/${el.dataset.calLink}`;
+  fallback.className = "btn btn-ink";
+  fallback.textContent = "Open booking calendar";
+  el.replaceChildren(fallback);
+  showToast("The booking calendar could not load. Please use the booking link.");
+}
+
+function ensureCalEmbed() {
+  if (calInitialized) return;
+  calInitialized = true;
+
+  (function (C, A, L) {
+    const p = (a, ar) => a.q.push(ar);
+    const d = C.document;
+    C.Cal = C.Cal || function () {
+      const cal = C.Cal;
+      const ar = arguments;
+      if (!cal.loaded) {
+        cal.ns = {};
+        cal.q = cal.q || [];
+        const script = d.createElement("script");
+        script.src = A;
+        script.async = true;
+        script.onerror = () => showCalFallback(false);
+        d.head.appendChild(script);
+        cal.loaded = true;
+      }
+      if (ar[0] === L) {
+        const api = function () { p(api, arguments); };
+        const namespace = ar[1];
+        api.q = api.q || [];
+        if (typeof namespace === "string") {
+          cal.ns[namespace] = cal.ns[namespace] || api;
+          p(cal.ns[namespace], ar);
+          p(cal, ["initNamespace", namespace]);
+        } else p(cal, ar);
+        return;
+      }
+      p(cal, ar);
+    };
+  })(window, "https://app.cal.com/embed/embed.js", "init");
+
+  Cal("init", { origin: "https://cal.com" });
+  Cal("on", { action: "linkReady", callback: () => document.getElementById("calBooking")?.setAttribute("aria-busy", "false") });
+  Cal("on", { action: "linkFailed", callback: () => showCalFallback(true) });
+  Cal("on", {
+    action: "bookingSuccessfulV2",
+    callback: ({ detail }) => {
+      if (String(detail.data?.status || "").toUpperCase() === "ACCEPTED") setFlowStep(3);
+    },
+  });
+}
 
 function renderCalBooking(name, email) {
   const el = document.getElementById("calBooking");
-  if (!el || el.dataset.rendered) return; // avoid double-render on repeat submits
+  if (!el || el.dataset.rendered) return;
+
+  pendingCalBooking = { name: name || "", email: email || "" };
+  ensureCalEmbed();
+  el.setAttribute("aria-busy", "true");
+  el.dataset.rendered = "true";
   Cal("inline", {
     elementOrSelector: "#calBooking",
     calLink: el.dataset.calLink,
     layout: "month_view",
-    config: {
-      name: name || "",
-      email: email || "",
-    },
+    config: pendingCalBooking,
   });
-  el.dataset.rendered = "true";
 }
+
+setFlowStep(1);
 
 /* ---------- Submit to Vercel API route → Brevo ---------- */
 async function submitToBrevo(payload) {
-  const res = await fetch("/api/submit-lead", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload),
-  });
-  const json = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(json.error || "Server error " + res.status);
-  return json;
+  const controller = typeof AbortController === "function" ? new AbortController() : null;
+  const timeout = controller ? setTimeout(() => controller.abort(), 15000) : null;
+  try {
+    const res = await fetch("/api/submit-lead", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+      signal: controller?.signal,
+    });
+    const json = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(json.error || "Server error " + res.status);
+    return json;
+  } finally {
+    if (timeout) clearTimeout(timeout);
+  }
 }
 
 /* ---------- Form submit handler ---------- */
@@ -1410,8 +1486,11 @@ async function submitToBrevo(payload) {
     if (!validateForm()) {
       showToast("Please fill in all required fields.");
       // Scroll to first red field
-      const first = form.querySelector('[style*="var(--error"]');
-      if (first) first.scrollIntoView({ behavior: "smooth", block: "center" });
+      const first = form.querySelector('[aria-invalid="true"]');
+      if (first) {
+        first.scrollIntoView({ behavior: "smooth", block: "center" });
+        first.focus({ preventScroll: true });
+      }
       return;
     }
 
@@ -1441,10 +1520,8 @@ async function submitToBrevo(payload) {
         TATTOO_COLORS:    colors.join(", "),
         REMOVAL_GOAL:     fd.get("goal"),
         PREFERRED_CONTACT:fd.get("contactMethod"),
-        SMS_OPT_IN:       document.getElementById("cSms").checked ? "Yes" : "No",
-        LEAD_SOURCE:      "Landing Page",
-        BOOKING_STATUS:   "Lead",
-        CONSENT_TIMESTAMP: new Date().toISOString(),
+        smsOptIn:         document.getElementById("cSms").checked,
+        privacyConsent:   document.getElementById("cPrivacy").checked,
         MESSAGE:          "",   // reserved — automations use this
         PHOTO_URL:        "",   // filled in below if photo uploaded
         IMAGE_URL:        "",   // mirror of PHOTO_URL
@@ -1470,6 +1547,7 @@ async function submitToBrevo(payload) {
       // 5. Success UI (no layout change — matches existing form-success element)
       form.style.display = "none";
       success.style.display = "block";
+      setFlowStep(2);
       renderCalBooking(fd.get("name"), payload.email);
 
     } catch (err) {
